@@ -1,0 +1,69 @@
+name: CI/CD Pipeline for GitHub Pages
+
+# Configuración del evento que activa el workflow
+on:
+  push:
+    branches:
+      - main  # Se activa con push a la rama main
+
+# Configuración de concurrencia para evitar despliegues simultáneos en GitHub Pages
+concurrency:
+  group: 'pages'  # Grupo de concurrencia para evitar conflictos
+  cancel-in-progress: true  # Cancela cualquier despliegue en progreso si se hace un nuevo push
+
+# Permisos necesarios para el workflow
+permissions:
+  contents: write  # Permiso para escribir en el repositorio (necesario para GitHub Pages)
+  pages: write     # Permiso para desplegar en GitHub Pages
+  id-token: write  # Permiso para autenticación con OIDC (opcional, pero recomendado)
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest  # Usa la última versión de Ubuntu
+
+    steps:
+      # Paso 1: Checkout del repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4  # Acción oficial para clonar el repositorio
+
+      # Paso 2: Configura Node.js versión 20
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20  # Versión de Node.js a usar
+          cache: 'npm'      # Habilita el caché de npm para optimizar la instalación de dependencias
+
+      # Paso 3: Instala dependencias
+      - name: Install dependencies
+        run: npm install  # Instala las dependencias del proyecto
+
+      # Paso 4: Ejecuta pruebas unitarias
+      - name: Run unit tests
+        run: npm run test  # Ejecuta las pruebas unitarias
+
+      # Paso 5: Construye el proyecto
+      - name: Build project
+        run: npm run build  # Construye el proyecto (asumiendo que el comando es 'npm run build')
+
+      # Paso 6: Configura GitHub Pages
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v3  # Configura el entorno de GitHub Pages
+
+      # Paso 7: Sube el artefacto a GitHub Pages
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: 'dist'  # Usa la carpeta 'dist' como el artefacto a desplegar
+
+      # Paso 8: Despliega el artefacto en GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v2  # Despliega el artefacto en GitHub Pages
+        id: deployment  # Asigna un ID para acceder a los outputs del despliegue
+
+    # Outputs del job
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}  # URL de la página desplegada
+
+# Outputs del workflow
+outputs:
+  page-url: ${{ jobs.build-and-deploy.outputs.page-url }}  # URL de la página desplegada
